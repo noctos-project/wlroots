@@ -27,3 +27,7 @@ endforeach
 subdir('multi')
 subdir('wayland')
 subdir('headless')
+
+if host_machine.system() == 'sunos'
+	subdir('illumosfb')
+endif

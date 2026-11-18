@@ -28,6 +28,10 @@
 #include <wlr/backend/libinput.h>
 #endif
 
+#ifdef __sun
+#include <wlr/backend/illumosfb.h>
+#endif
+
 #if WLR_HAS_X11_BACKEND
 #include <wlr/backend/x11.h>
 #endif
@@ -297,6 +301,10 @@ static bool attempt_backend_by_name(struct wl_event_loop *loop,
 		backend = attempt_x11_backend(loop, NULL);
 	} else if (strcmp(name, "headless") == 0) {
 		backend = attempt_headless_backend(loop);
+#ifdef __sun
+	} else if (strcmp(name, "illumosfb") == 0) {
+		backend = wlr_illumosfb_backend_create(loop);
+#endif
 	} else if (strcmp(name, "drm") == 0 || strcmp(name, "libinput") == 0) {
 		// DRM and libinput need a session
 		if (*session_ptr == NULL) {
@@ -392,6 +400,20 @@ struct wlr_backend *wlr_backend_autocreate(struct wl_event_loop *loop,
 
 		goto success;
 	}
+
+#ifdef __sun
+	// On illumos the console framebuffer backend is the native seat;
+	// there is no DRM or libinput to fall through to.
+	{
+		struct wlr_backend *fb = wlr_illumosfb_backend_create(loop);
+		if (fb == NULL) {
+			wlr_log(WLR_ERROR, "Failed to create illumosfb backend");
+			goto error;
+		}
+		wlr_multi_backend_add(multi, fb);
+		goto success;
+	}
+#endif
 
 	// Attempt DRM+libinput
 	session = session_create_and_wait(loop);
