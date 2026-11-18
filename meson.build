@@ -20,6 +20,12 @@ versioned_name = '@0@-@1@.@2@'.format(meson.project_name(), version_major, versi
 little_endian = target_machine.endian() == 'little'
 big_endian = target_machine.endian() == 'big'
 
+if host_machine.system() == 'sunos'
+	# strict-POSIX headers hide MAP_ANONYMOUS, sigaction, strdup, getline;
+	# __EXTENSIONS__ is the illumos equivalent of _DEFAULT_SOURCE.
+	add_project_arguments('-D__EXTENSIONS__', language: 'c')
+endif
+
 add_project_arguments([
 	'-D_POSIX_C_SOURCE=200809L',
 	'-DWLR_USE_UNSTABLE',
@@ -147,7 +153,12 @@ subdir('include')
 wlr_inc = include_directories('include')
 
 symbols_file = 'wlroots.syms'
-symbols_flag = '-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), symbols_file)
+symbols_flag = []
+if host_machine.system() != 'sunos'
+	# illumos ld has no --version-script, and a Solaris mapfile cannot
+	# express the wlr_* glob in the global scope: export everything there.
+	symbols_flag = '-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), symbols_file)
+endif
 lib_wlr = library(
 	versioned_name, wlr_files,
 	dependencies: wlr_deps,
